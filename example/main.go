@@ -5,8 +5,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 
@@ -43,7 +41,7 @@ func run(ctx context.Context) error {
 
 		prompt := "List a few popular cookie recipes"
 
-		ret, err := generateObject[[]T1](ctx, client, genai.Text(prompt))
+		ret, err := genaischema.GenerateObjectContent[[]T1](ctx, client, genai.Text(prompt))
 		if err != nil {
 			return err
 		}
@@ -66,7 +64,7 @@ func run(ctx context.Context) error {
 			- "Quite good, but a bit too sweet for my taste." Rating: 1, Flavor: Mango Tango
 			`
 
-		ret, err := generateObject[[]T2](ctx, client, genai.Text(prompt))
+		ret, err := genaischema.GenerateObjectContent[[]T2](ctx, client, genai.Text(prompt))
 		if err != nil {
 			return err
 		}
@@ -100,7 +98,7 @@ func run(ctx context.Context) error {
 			Finally, Saturday rounds off the week with sunny skies, a temperature of 80°F, and a humidity level of 40%. Winds will be gentle at 8 km/h.
 			`
 
-		ret, err := generateObject[T3](ctx, client, genai.Text(prompt))
+		ret, err := genaischema.GenerateObjectContent[T3](ctx, client, genai.Text(prompt))
 		if err != nil {
 			return err
 		}
@@ -126,7 +124,7 @@ func run(ctx context.Context) error {
 			It has large questionable stains on it.
 			`
 
-		ret, err := generateObject[[]T4](ctx, client, genai.Text(prompt))
+		ret, err := genaischema.GenerateObjectContent[[]T4](ctx, client, genai.Text(prompt))
 		if err != nil {
 			return err
 		}
@@ -153,7 +151,7 @@ func run(ctx context.Context) error {
 
 		prompt := "Generate a list of objects in the images."
 
-		res, err := generateObject[T5](ctx, client, []*genai.Content{{Parts: []*genai.Part{img1, img2, genai.NewPartFromText(prompt)}}})
+		res, err := genaischema.GenerateObjectContent[T5](ctx, client, []*genai.Content{{Parts: []*genai.Part{img1, img2, genai.NewPartFromText(prompt)}}})
 		if err != nil {
 			return err
 		}
@@ -171,7 +169,7 @@ and narration. The primary purpose of a film is to present information and provi
 into various aspects of reality.
 `
 
-		res, err := generateEnum[T6](ctx, client, genai.Text(prompt))
+		res, err := genaischema.GenerateEnumContent[T6](ctx, client, genai.Text(prompt))
 		if err != nil {
 			return err
 		}
@@ -179,56 +177,4 @@ into various aspects of reality.
 		fmt.Println(res)
 	}
 	return nil
-}
-
-func generateObject[T any](ctx context.Context, client *genai.Client, contents []*genai.Content) (T, error) {
-	var zero T
-
-	res, err := generate[T](ctx, client, contents, "application/json")
-	if err != nil {
-		return zero, err
-	}
-
-	var result T
-	if err = json.Unmarshal([]byte(res), &result); err != nil {
-		return zero, err
-	}
-
-	return result, nil
-}
-
-func generateEnum[T interface {
-	~string
-	Enum() []any
-}](ctx context.Context, client *genai.Client, contents []*genai.Content) (T, error) {
-	res, err := generate[T](ctx, client, contents, "text/x.enum")
-	if err != nil {
-		return "", err
-	}
-
-	return T(res), nil
-}
-
-func generate[T any](ctx context.Context, client *genai.Client, contents []*genai.Content, mimeType string) (string, error) {
-	schema, err := genaischema.GenerateForType[T]()
-	if err != nil {
-		return "", err
-	}
-
-	res, err := client.Models.GenerateContent(ctx,
-		"gemini-2.0-flash",
-		contents,
-		&genai.GenerateContentConfig{
-			ResponseMIMEType: mimeType,
-			ResponseSchema:   schema,
-		})
-	if err != nil {
-		return "", err
-	}
-
-	if len(res.Candidates) == 0 || len(res.Candidates[0].Content.Parts) == 0 {
-		return "", errors.New("empty response from model")
-	}
-
-	return res.Candidates[0].Content.Parts[0].Text, nil
 }

@@ -9,22 +9,22 @@ import (
 	"google.golang.org/genai"
 )
 
-func GenerateForValue(value any) (*genai.Schema, error) {
+func ForValue(value any) (*genai.Schema, error) {
 	reflector := jsonschema.Reflector{}
 	schema, err := reflector.Reflect(value, jsonschema.InlineRefs)
 	if err != nil {
 		return nil, err
 	}
 
-	return convertSchema(schema)
+	return Convert(schema)
 }
 
-func GenerateForType[T any]() (*genai.Schema, error) {
+func ForType[T any]() (*genai.Schema, error) {
 	var v T
-	return GenerateForValue(v)
+	return ForValue(v)
 }
 
-func convertSchema(schema jsonschema.Schema) (*genai.Schema, error) {
+func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 	var err error
 
 	var anyOf []*genai.Schema
@@ -147,7 +147,7 @@ func convertType(t *jsonschema.Type) (genai.Type, error) {
 func convertSchemaOrBool(schema jsonschema.SchemaOrBool) (*genai.Schema, error) {
 	switch {
 	case schema.TypeObject != nil:
-		return convertSchema(*schema.TypeObject)
+		return Convert(*schema.TypeObject)
 	default:
 		return nil, fmt.Errorf("jsonschema.SchemaOrBool.TypeObject is only supported")
 	}

@@ -90,13 +90,13 @@ func TestGenerateForValue(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			got, err := GenerateForValue(test.value)
+			got, err := ForValue(test.value)
 			if err != nil {
-				t.Errorf("GenerateForValue() error = %v", err)
+				t.Errorf("ForValue() error = %v", err)
 			}
 
 			if diff := cmp.Diff(got, test.want, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("GenerateForValue() mismatch (-got +want):\n%s", diff)
+				t.Errorf("ForValue() mismatch (-got +want):\n%s", diff)
 			}
 		})
 	}
