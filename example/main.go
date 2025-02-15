@@ -1,0 +1,234 @@
+package main
+
+// Port of controlled generation examples
+// https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/control-generated-output
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+
+	"github.com/k0kubun/pp/v3"
+	"google.golang.org/genai"
+
+	"github.com/apstndb/genaischema"
+)
+
+func main() {
+	if err := run(context.Background()); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+type T6 string
+
+func (T6) Enum() []any {
+	return []any{"drama", "comedy", "documentary"}
+}
+
+func run(ctx context.Context) error {
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{HTTPOptions: genai.HTTPOptions{APIVersion: "v1"}})
+	if err != nil {
+		return err
+	}
+
+	{
+		fmt.Println("Example: Send a prompt with a response schema")
+
+		type T1 struct {
+			RecipeName string `json:"recipe_name" required:"true"`
+		}
+
+		prompt := "List a few popular cookie recipes"
+
+		ret, err := generateObject[[]T1](ctx, client, genai.Text(prompt))
+		if err != nil {
+			return err
+		}
+
+		pp.Println(ret)
+	}
+
+	{
+		fmt.Println("Example: Summarize review ratings")
+
+		type T2 struct {
+			Rating int    `json:"rating"`
+			Flavor string `json:"flavor"`
+		}
+
+		prompt := `
+			Reviews from our social media:
+
+			- "Absolutely loved it! Best ice cream I've ever had." Rating: 4, Flavor: Strawberry Cheesecake
+			- "Quite good, but a bit too sweet for my taste." Rating: 1, Flavor: Mango Tango
+			`
+
+		ret, err := generateObject[[]T2](ctx, client, genai.Text(prompt))
+		if err != nil {
+			return err
+		}
+
+		pp.Println(ret)
+	}
+
+	{
+		fmt.Println("Example: Forecast the weather for each day of the week")
+
+		type T3Forecast struct {
+			Day         string `json:"Day" required:"true"`
+			Forecast    string `json:"Forecast" required:"true"`
+			Humidity    string `json:"Humidity"`
+			Temperature string `json:"Temperature" required:"true"`
+			WindSpeed   string `json:"Wind Speed"`
+		}
+
+		type T3 struct {
+			Forecast []T3Forecast `json:"forecast"`
+		}
+
+		prompt := `
+			The week ahead brings a mix of weather conditions.
+			Sunday is expected to be sunny with a temperature of 77°F and a humidity level of 50%. Winds will be light at around 10 km/h.
+			Monday will see partly cloudy skies with a slightly cooler temperature of 72°F and humidity increasing to 55%. Winds will pick up slightly to around 15 km/h.
+			Tuesday brings rain showers, with temperatures dropping to 64°F and humidity rising to 70%. Expect stronger winds at 20 km/h.
+			Wednesday may see thunderstorms, with a temperature of 68°F and high humidity of 75%. Winds will be gusty at 25 km/h.
+			Thursday will be cloudy with a temperature of 66°F and moderate humidity at 60%. Winds will ease slightly to 18 km/h.
+			Friday returns to partly cloudy conditions, with a temperature of 73°F and lower humidity at 45%. Winds will be light at 12 km/h.
+			Finally, Saturday rounds off the week with sunny skies, a temperature of 80°F, and a humidity level of 40%. Winds will be gentle at 8 km/h.
+			`
+
+		ret, err := generateObject[T3](ctx, client, genai.Text(prompt))
+		if err != nil {
+			return err
+		}
+
+		pp.Println(ret)
+	}
+
+	{
+		fmt.Println("Example: Classify a product")
+
+		type T4 struct {
+			ToDiscard    int    `json:"to_discard"`
+			Subcategory  string `json:"subcategory"`
+			SafeHandling string `json:"safe_handling"`
+			ItemCategory string `json:"item_category" enum:"clothing,winter apparel,specialized apparel,furniture,decor,tableware,cookware,toys"`
+			ForResale    int    `json:"for_resale"`
+			Condition    string `json:"condition" enum:"new in package,like new,gently used,used,damaged,soiled"`
+		}
+
+		prompt := `
+			Item description:
+			The item is a long winter coat that has many tears all around the seams and is falling apart.
+			It has large questionable stains on it.
+			`
+
+		ret, err := generateObject[[]T4](ctx, client, genai.Text(prompt))
+		if err != nil {
+			return err
+		}
+
+		pp.Println(ret)
+	}
+
+	{
+		fmt.Println("Example: Classify a product")
+
+		type T5 struct {
+			Object string `json:"object"`
+		}
+
+		img1 := genai.NewPartFromURI(
+			"gs://cloud-samples-data/generative-ai/image/office-desk.jpeg",
+			"image/jpeg",
+		)
+
+		img2 := genai.NewPartFromURI(
+			"gs://cloud-samples-data/generative-ai/image/gardening-tools.jpeg",
+			"image/jpeg",
+		)
+
+		prompt := "Generate a list of objects in the images."
+
+		res, err := generateObject[T5](ctx, client, []*genai.Content{{Parts: []*genai.Part{img1, img2, genai.NewPartFromText(prompt)}}})
+		if err != nil {
+			return err
+		}
+
+		pp.Println(res)
+	}
+
+	{
+		fmt.Println("Example: Example schema for enum output")
+
+		prompt := `
+The film aims to educate and inform viewers about real-life subjects, events, or people.
+It offers a factual record of a particular topic by combining interviews, historical footage,
+and narration. The primary purpose of a film is to present information and provide insights
+into various aspects of reality.
+`
+
+		res, err := generateEnum[T6](ctx, client, genai.Text(prompt))
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(res)
+	}
+	return nil
+}
+
+func generateObject[T any](ctx context.Context, client *genai.Client, contents []*genai.Content) (T, error) {
+	var zero T
+
+	res, err := generate[T](ctx, client, contents, "application/json")
+	if err != nil {
+		return zero, err
+	}
+
+	var result T
+	if err = json.Unmarshal([]byte(res), &result); err != nil {
+		return zero, err
+	}
+
+	return result, nil
+}
+
+func generateEnum[T interface {
+	~string
+	Enum() []any
+}](ctx context.Context, client *genai.Client, contents []*genai.Content) (T, error) {
+	res, err := generate[T](ctx, client, contents, "text/x.enum")
+	if err != nil {
+		return "", err
+	}
+
+	return T(res), nil
+}
+
+func generate[T any](ctx context.Context, client *genai.Client, contents []*genai.Content, mimeType string) (string, error) {
+	schema, err := genaischema.GenerateForType[T]()
+	if err != nil {
+		return "", err
+	}
+
+	res, err := client.Models.GenerateContent(ctx,
+		"gemini-2.0-flash",
+		contents,
+		&genai.GenerateContentConfig{
+			ResponseMIMEType: mimeType,
+			ResponseSchema:   schema,
+		})
+	if err != nil {
+		return "", err
+	}
+
+	if len(res.Candidates) == 0 || len(res.Candidates[0].Content.Parts) == 0 {
+		return "", errors.New("empty response from model")
+	}
+
+	return res.Candidates[0].Content.Parts[0].Text, nil
+}
