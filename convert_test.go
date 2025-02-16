@@ -56,6 +56,8 @@ func TestGenerateForValue(t *testing.T) {
 			"complex",
 			struct {
 				Text          string   `json:"text" description:"text field" minLength:"1" maxLength:"100"`
+				TextPointer   *string  `json:"textPointer"`
+				TextNullable  string   `json:"textNullable" nullable:"true"`
 				Direction     string   `json:"direction" title:"Direction" description:"Direction of target" enum:"NORTH,SOUTH,EAST,WEST" required:"true"`
 				Email         string   `json:"email" format:"email" required:"true"`
 				Number        float64  `json:"number" maximum:"100.0"`
@@ -68,12 +70,14 @@ func TestGenerateForValue(t *testing.T) {
 			&genai.Schema{
 				Type: genai.TypeObject,
 				Properties: map[string]*genai.Schema{
-					"text":      {Type: genai.TypeString, Description: "text field", MinLength: genai.Ptr[int64](1), MaxLength: genai.Ptr[int64](100)},
-					"direction": {Type: genai.TypeString, Enum: []string{"NORTH", "SOUTH", "EAST", "WEST"}, Title: "Direction", Description: "Direction of target"},
-					"abc":       {Type: genai.TypeString, Pattern: "^[abc]$"},
-					"email":     {Type: genai.TypeString, Format: "email"},
-					"number":    {Type: genai.TypeNumber, Maximum: genai.Ptr(100.0)},
-					"integer":   {Type: genai.TypeInteger, Minimum: genai.Ptr(1.0), Default: int64(-1)},
+					"text":         {Type: genai.TypeString, Description: "text field", MinLength: genai.Ptr[int64](1), MaxLength: genai.Ptr[int64](100)},
+					"textPointer":  {Type: genai.TypeString, Nullable: true},
+					"textNullable": {Type: genai.TypeString, Nullable: true},
+					"direction":    {Type: genai.TypeString, Enum: []string{"NORTH", "SOUTH", "EAST", "WEST"}, Title: "Direction", Description: "Direction of target"},
+					"abc":          {Type: genai.TypeString, Pattern: "^[abc]$"},
+					"email":        {Type: genai.TypeString, Format: "email"},
+					"number":       {Type: genai.TypeNumber, Maximum: genai.Ptr(100.0)},
+					"integer":      {Type: genai.TypeInteger, Minimum: genai.Ptr(1.0), Default: int64(-1)},
 					"arrayOfString": {Type: genai.TypeArray,
 						Items:    &genai.Schema{Type: genai.TypeString},
 						MinItems: genai.Ptr[int64](1),

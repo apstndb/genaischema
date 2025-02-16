@@ -48,6 +48,7 @@ func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 	}
 
 	var typ genai.Type
+	var nullable bool
 	var items *genai.Schema
 	if schema.Items != nil {
 		typ = genai.TypeArray
@@ -60,7 +61,7 @@ func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 			return nil, err
 		}
 	} else {
-		typ, err = convertType(schema.Type)
+		typ, nullable, err = convertType(schema.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -90,7 +91,7 @@ func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 		MinProperties:    emptyableToPtr(schema.MinProperties),
 		MaxItems:         schema.MaxItems,
 		Maximum:          schema.Maximum,
-		Nullable:         false, // TODO
+		Nullable:         nullable,
 		MaxProperties:    schema.MaxProperties,
 		Type:             typ,
 		Description:      fromPtr(schema.Description),
@@ -111,27 +112,48 @@ func convertEnum(enum []interface{}) ([]string, error) {
 	return unmarshal[[]string](b)
 }
 
-func convertType(t *jsonschema.Type) (genai.Type, error) {
+func convertType(t *jsonschema.Type) (typ genai.Type, nullable bool, err error) {
 	if t == nil {
-		return "", fmt.Errorf("invalid argument: type is nil")
+		return "", false, fmt.Errorf("invalid argument: type is nil")
 	}
 
-	switch fromPtr(t.SimpleTypes) {
+	switch {
+	case len(t.SliceOfSimpleTypeValues) > 2:
+		return "", false, fmt.Errorf("invalid argument: too many SliceOfSimpleTypeValues: %v", len(t.SliceOfSimpleTypeValues))
+	case len(t.SliceOfSimpleTypeValues) == 2:
+		for _, v := range t.SliceOfSimpleTypeValues {
+			if fromPtr(v.Type().SimpleTypes) == jsonschema.Null {
+				nullable = true
+			} else if typ != empty[genai.Type]() {
+				return "", false, fmt.Errorf("invalid argument: SliceOfSimpleTypeValues: %+v", t.SliceOfSimpleTypeValues)
+			} else {
+				typ = convertSimpleType(v)
+			}
+		}
+		return typ, nullable, nil
+	default:
+		simpleType := fromPtr(t.SimpleTypes)
+		return convertSimpleType(simpleType), false, nil
+	}
+}
+
+func convertSimpleType(simpleType jsonschema.SimpleType) genai.Type {
+	switch simpleType {
 	case jsonschema.Array:
-		return genai.TypeArray, nil
+		return genai.TypeArray
 	case jsonschema.String:
-		return genai.TypeString, nil
+		return genai.TypeString
 	case jsonschema.Number:
-		return genai.TypeNumber, nil
+		return genai.TypeNumber
 	case jsonschema.Integer:
-		return genai.TypeInteger, nil
+		return genai.TypeInteger
 	case jsonschema.Boolean:
-		return genai.TypeBoolean, nil
+		return genai.TypeBoolean
 	case jsonschema.Object:
-		return genai.TypeObject, nil
+		return genai.TypeObject
 	default:
 		// TODO
-		return genai.TypeObject, nil
+		return genai.TypeObject
 	}
 }
 
