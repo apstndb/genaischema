@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/samber/lo"
 	"github.com/swaggest/jsonschema-go"
 	"google.golang.org/genai"
 )
@@ -78,25 +77,25 @@ func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 	}
 
 	return &genai.Schema{
-		MinItems:         lo.EmptyableToPtr(schema.MinItems),
+		MinItems:         emptyableToPtr(schema.MinItems),
 		Example:          example,
 		PropertyOrdering: nil, // TODO
-		Pattern:          lo.FromPtr(schema.Pattern),
+		Pattern:          fromPtr(schema.Pattern),
 		Minimum:          schema.Minimum,
-		Default:          lo.FromPtr(schema.Default),
+		Default:          fromPtr(schema.Default),
 		AnyOf:            anyOf,
 		MaxLength:        schema.MaxLength,
-		Title:            lo.FromPtr(schema.Title),
-		MinLength:        lo.EmptyableToPtr(schema.MinLength),
-		MinProperties:    lo.EmptyableToPtr(schema.MinProperties),
+		Title:            fromPtr(schema.Title),
+		MinLength:        emptyableToPtr(schema.MinLength),
+		MinProperties:    emptyableToPtr(schema.MinProperties),
 		MaxItems:         schema.MaxItems,
 		Maximum:          schema.Maximum,
 		Nullable:         false, // TODO
 		MaxProperties:    schema.MaxProperties,
 		Type:             typ,
-		Description:      lo.FromPtr(schema.Description),
+		Description:      fromPtr(schema.Description),
 		Enum:             enum,
-		Format:           lo.FromPtr(schema.Format),
+		Format:           fromPtr(schema.Format),
 		Items:            items,
 		Properties:       properties,
 		Required:         schema.Required,
@@ -117,7 +116,7 @@ func convertType(t *jsonschema.Type) (genai.Type, error) {
 		return "", fmt.Errorf("invalid argument: type is nil")
 	}
 
-	switch lo.FromPtr(t.SimpleTypes) {
+	switch fromPtr(t.SimpleTypes) {
 	case jsonschema.Array:
 		return genai.TypeArray, nil
 	case jsonschema.String:

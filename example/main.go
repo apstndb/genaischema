@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/k0kubun/pp/v3"
 	"google.golang.org/genai"
 
 	"github.com/apstndb/genaischema"
@@ -18,6 +17,10 @@ func main() {
 	if err := run(context.Background()); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func printValue(v any) {
+	fmt.Printf("%+v\n", v)
 }
 
 type T6 string
@@ -49,7 +52,7 @@ func run(ctx context.Context) error {
 			return err
 		}
 
-		pp.Println(ret)
+		printValue(ret)
 	}
 
 	{
@@ -66,7 +69,7 @@ func run(ctx context.Context) error {
 			return err
 		}
 
-		pp.Println(ret)
+		printValue(ret)
 	}
 
 	{
@@ -89,7 +92,7 @@ func run(ctx context.Context) error {
 			return err
 		}
 
-		pp.Println(ret)
+		printValue(ret)
 	}
 
 	{
@@ -123,7 +126,7 @@ func run(ctx context.Context) error {
 			return err
 		}
 
-		pp.Println(ret)
+		printValue(ret)
 	}
 
 	{
@@ -149,7 +152,7 @@ func run(ctx context.Context) error {
 			return err
 		}
 
-		pp.Println(ret)
+		printValue(ret)
 	}
 
 	{
@@ -178,7 +181,7 @@ func run(ctx context.Context) error {
 			return err
 		}
 
-		pp.Println(res)
+		printValue(res)
 	}
 
 	{
@@ -196,7 +199,7 @@ into various aspects of reality.
 			return err
 		}
 
-		fmt.Println(res)
+		printValue(res)
 	}
 	return nil
 }

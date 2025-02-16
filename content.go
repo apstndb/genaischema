@@ -2,18 +2,11 @@ package genaischema
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"iter"
 
 	"google.golang.org/genai"
 )
-
-func unmarshal[T any](b []byte) (T, error) {
-	var v T
-	err := json.Unmarshal(b, &v)
-	return v, err
-}
 
 // GenerateObjectContent returns the first candidate object from the model using T as response schema of controlled generation.
 func GenerateObjectContent[T any](ctx context.Context, client *genai.Client, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (T, error) {
@@ -50,8 +43,7 @@ func generateObjectContents[T any](ctx context.Context, client *genai.Client, mo
 
 	if texts, err := GenerateTextContents[T](ctx, client, model, contents, config); err != nil {
 		return func(yield func(T, error) bool) {
-			var zero T
-			yield(zero, err)
+			yield(empty[T](), err)
 		}
 	} else {
 		return func(yield func(T, error) bool) {
