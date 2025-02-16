@@ -9,6 +9,7 @@ import (
 	"google.golang.org/genai"
 )
 
+// ForValue returns genai.Schema for value.
 func ForValue(value any) (*genai.Schema, error) {
 	reflector := jsonschema.Reflector{}
 	schema, err := reflector.Reflect(value, jsonschema.InlineRefs)
@@ -19,11 +20,13 @@ func ForValue(value any) (*genai.Schema, error) {
 	return Convert(schema)
 }
 
+// ForType returns genai.Schema for T.
 func ForType[T any]() (*genai.Schema, error) {
 	var v T
 	return ForValue(v)
 }
 
+// Convert converts jsonschema.Schema to genai.Schema.
 func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 	var err error
 
@@ -69,11 +72,6 @@ func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 		return nil, err
 	}
 
-	var def any
-	if schema.Default != nil {
-		def = schema.Default
-	}
-
 	var example any
 	if len(schema.Examples) > 0 {
 		example = schema.Examples
@@ -85,7 +83,7 @@ func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 		PropertyOrdering: nil, // TODO
 		Pattern:          lo.FromPtr(schema.Pattern),
 		Minimum:          schema.Minimum,
-		Default:          def,
+		Default:          lo.FromPtr(schema.Default),
 		AnyOf:            anyOf,
 		MaxLength:        schema.MaxLength,
 		Title:            lo.FromPtr(schema.Title),
@@ -106,18 +104,12 @@ func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 }
 
 func convertEnum(enum []interface{}) ([]string, error) {
-	var result []string
 	b, err := json.Marshal(enum)
 	if err != nil {
 		return nil, err
 	}
 
-	err = json.Unmarshal(b, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, err
+	return unmarshal[[]string](b)
 }
 
 func convertType(t *jsonschema.Type) (genai.Type, error) {

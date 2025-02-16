@@ -4,58 +4,124 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"iter"
 
 	"google.golang.org/genai"
 )
 
-func GenerateObjectContent[T any](ctx context.Context, client *genai.Client, contents []*genai.Content) (T, error) {
-	var zero T
-
-	res, err := GenerateTextContent[T](ctx, client, contents, "application/json")
-	if err != nil {
-		return zero, err
-	}
-
-	var result T
-	if err = json.Unmarshal([]byte(res), &result); err != nil {
-		return zero, err
-	}
-
-	return result, nil
+func unmarshal[T any](b []byte) (T, error) {
+	var v T
+	err := json.Unmarshal(b, &v)
+	return v, err
 }
 
+// GenerateObjectContent returns the first candidate object from the model using T as response schema of controlled generation.
+func GenerateObjectContent[T any](ctx context.Context, client *genai.Client, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (T, error) {
+	next, stop := iter.Pull2(generateObjectContents[T](ctx, client, model, contents, config))
+	defer stop()
+
+	if v, err, ok := next(); ok {
+		return v, err
+	} else {
+		return v, errors.New("empty response from model")
+	}
+}
+
+// GenerateObjectContents returns the candidate objects from the model using T as response schema of controlled generation.
+func GenerateObjectContents[T any](ctx context.Context, client *genai.Client, model string, contents []*genai.Content, config *genai.GenerateContentConfig) ([]T, error) {
+	var results []T
+	for v, err := range generateObjectContents[T](ctx, client, model, contents, config) {
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, v)
+	}
+
+	return results, nil
+}
+
+func generateObjectContents[T any](ctx context.Context, client *genai.Client, model string, contents []*genai.Content, config *genai.GenerateContentConfig) iter.Seq2[T, error] {
+	if config == nil {
+		config = &genai.GenerateContentConfig{}
+	}
+
+	config.ResponseMIMEType = "application/json"
+
+	if texts, err := GenerateTextContents[T](ctx, client, model, contents, config); err != nil {
+		return func(yield func(T, error) bool) {
+			var zero T
+			yield(zero, err)
+		}
+	} else {
+		return func(yield func(T, error) bool) {
+			for _, text := range texts {
+				if !yield(unmarshal[T]([]byte(text))) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// GenerateEnumContent returns the first enum candidate from the model using T as response schema of controlled generation.
 func GenerateEnumContent[T interface {
 	~string
 	Enum() []any
-}](ctx context.Context, client *genai.Client, contents []*genai.Content) (T, error) {
-	res, err := GenerateTextContent[T](ctx, client, contents, "text/x.enum")
-	if err != nil {
-		return "", err
+}](ctx context.Context, client *genai.Client, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (T, error) {
+	if config == nil {
+		config = &genai.GenerateContentConfig{}
 	}
 
-	return T(res), nil
+	config.ResponseMIMEType = "text/x.enum"
+
+	res, err := GenerateTextContent[T](ctx, client, model, contents, config)
+	return T(res), err
 }
 
-func GenerateTextContent[T any](ctx context.Context, client *genai.Client, contents []*genai.Content, mimeType string) (string, error) {
-	schema, err := ForType[T]()
+// GenerateTextContent returns the first text candidate from the model using T as response schema of controlled generation.
+func GenerateTextContent[T any](ctx context.Context, client *genai.Client, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (string, error) {
+	res, err := GenerateTextContents[T](ctx, client, model, contents, config)
 	if err != nil {
 		return "", err
 	}
 
-	res, err := client.Models.GenerateContent(ctx,
-		"gemini-2.0-flash",
-		contents,
-		&genai.GenerateContentConfig{
-			ResponseMIMEType: mimeType,
-			ResponseSchema:   schema,
-		})
-	if err != nil {
-		return "", err
-	}
-
-	if len(res.Candidates) == 0 || len(res.Candidates[0].Content.Parts) == 0 {
+	if len(res) == 0 {
 		return "", errors.New("empty response from model")
 	}
 
-	return res.Candidates[0].Content.Parts[0].Text, nil
+	return res[0], nil
+}
+
+// GenerateTextContents returns the text candidates from the model using T as response schema of controlled generation.
+func GenerateTextContents[T any](ctx context.Context, client *genai.Client, model string, contents []*genai.Content, config *genai.GenerateContentConfig) ([]string, error) {
+	res, err := GenerateRawContents[T](ctx, client, model, contents, config)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []string
+	for _, candidate := range res.Candidates {
+		if len(candidate.Content.Parts) == 0 {
+			continue
+		}
+
+		result = append(result, candidate.Content.Parts[0].Text)
+	}
+	return result, nil
+}
+
+// GenerateRawContents returns the raw response from the model using T as response schema of controlled generation.
+func GenerateRawContents[T any](ctx context.Context, client *genai.Client, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
+	schema, err := ForType[T]()
+	if err != nil {
+		return nil, err
+	}
+
+	if config == nil {
+		config = &genai.GenerateContentConfig{}
+	}
+	config.ResponseSchema = schema
+
+	return client.Models.GenerateContent(ctx, model, contents, config)
 }

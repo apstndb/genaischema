@@ -73,7 +73,7 @@ func TestGenerateForValue(t *testing.T) {
 					"abc":       {Type: genai.TypeString, Pattern: "^[abc]$"},
 					"email":     {Type: genai.TypeString, Format: "email"},
 					"number":    {Type: genai.TypeNumber, Maximum: genai.Ptr(100.0)},
-					"integer":   {Type: genai.TypeInteger, Minimum: genai.Ptr(1.0), Default: genai.Ptr[any](int64(-1))},
+					"integer":   {Type: genai.TypeInteger, Minimum: genai.Ptr(1.0), Default: int64(-1)},
 					"arrayOfString": {Type: genai.TypeArray,
 						Items:    &genai.Schema{Type: genai.TypeString},
 						MinItems: genai.Ptr[int64](1),

@@ -27,6 +27,8 @@ func (T6) Enum() []any {
 }
 
 func run(ctx context.Context) error {
+	const model = "gemini-2.0-flash"
+
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{HTTPOptions: genai.HTTPOptions{APIVersion: "v1"}})
 	if err != nil {
 		return err
@@ -41,7 +43,25 @@ func run(ctx context.Context) error {
 
 		prompt := "List a few popular cookie recipes"
 
-		ret, err := genaischema.GenerateObjectContent[[]T1](ctx, client, genai.Text(prompt))
+		ret, err := genaischema.GenerateTextContents[[]T1](ctx, client, model, genai.Text(prompt),
+			&genai.GenerateContentConfig{ResponseMIMEType: "application/json", CandidateCount: genai.Ptr[int64](3), Temperature: genai.Ptr(0.6)})
+		if err != nil {
+			return err
+		}
+
+		pp.Println(ret)
+	}
+
+	{
+		fmt.Println("Example: Send a prompt with a response schema")
+
+		type T1 struct {
+			RecipeName string `json:"recipe_name" required:"true"`
+		}
+
+		prompt := "List a few popular cookie recipes"
+
+		ret, err := genaischema.GenerateObjectContent[[]T1](ctx, client, model, genai.Text(prompt), nil)
 		if err != nil {
 			return err
 		}
@@ -64,7 +84,7 @@ func run(ctx context.Context) error {
 			- "Quite good, but a bit too sweet for my taste." Rating: 1, Flavor: Mango Tango
 			`
 
-		ret, err := genaischema.GenerateObjectContent[[]T2](ctx, client, genai.Text(prompt))
+		ret, err := genaischema.GenerateObjectContent[[]T2](ctx, client, model, genai.Text(prompt), nil)
 		if err != nil {
 			return err
 		}
@@ -98,7 +118,7 @@ func run(ctx context.Context) error {
 			Finally, Saturday rounds off the week with sunny skies, a temperature of 80°F, and a humidity level of 40%. Winds will be gentle at 8 km/h.
 			`
 
-		ret, err := genaischema.GenerateObjectContent[T3](ctx, client, genai.Text(prompt))
+		ret, err := genaischema.GenerateObjectContent[T3](ctx, client, model, genai.Text(prompt), nil)
 		if err != nil {
 			return err
 		}
@@ -124,7 +144,7 @@ func run(ctx context.Context) error {
 			It has large questionable stains on it.
 			`
 
-		ret, err := genaischema.GenerateObjectContent[[]T4](ctx, client, genai.Text(prompt))
+		ret, err := genaischema.GenerateObjectContent[[]T4](ctx, client, model, genai.Text(prompt), nil)
 		if err != nil {
 			return err
 		}
@@ -151,7 +171,9 @@ func run(ctx context.Context) error {
 
 		prompt := "Generate a list of objects in the images."
 
-		res, err := genaischema.GenerateObjectContent[T5](ctx, client, []*genai.Content{{Parts: []*genai.Part{img1, img2, genai.NewPartFromText(prompt)}}})
+		contents := []*genai.Content{{Parts: []*genai.Part{img1, img2, genai.NewPartFromText(prompt)}}}
+
+		res, err := genaischema.GenerateObjectContent[T5](ctx, client, model, contents, nil)
 		if err != nil {
 			return err
 		}
@@ -169,7 +191,7 @@ and narration. The primary purpose of a film is to present information and provi
 into various aspects of reality.
 `
 
-		res, err := genaischema.GenerateEnumContent[T6](ctx, client, genai.Text(prompt))
+		res, err := genaischema.GenerateEnumContent[T6](ctx, client, model, genai.Text(prompt), nil)
 		if err != nil {
 			return err
 		}
