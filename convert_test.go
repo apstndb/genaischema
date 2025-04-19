@@ -71,8 +71,8 @@ func TestGenerateForValue(t *testing.T) {
 				Type: genai.TypeObject,
 				Properties: map[string]*genai.Schema{
 					"text":         {Type: genai.TypeString, Description: "text field", MinLength: genai.Ptr[int64](1), MaxLength: genai.Ptr[int64](100)},
-					"textPointer":  {Type: genai.TypeString, Nullable: true},
-					"textNullable": {Type: genai.TypeString, Nullable: true},
+					"textPointer":  {Type: genai.TypeString, Nullable: genai.Ptr(true)},
+					"textNullable": {Type: genai.TypeString, Nullable: genai.Ptr(true)},
 					"direction":    {Type: genai.TypeString, Enum: []string{"NORTH", "SOUTH", "EAST", "WEST"}, Title: "Direction", Description: "Direction of target"},
 					"abc":          {Type: genai.TypeString, Pattern: "^[abc]$"},
 					"email":        {Type: genai.TypeString, Format: "email"},
