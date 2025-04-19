@@ -91,7 +91,7 @@ func Convert(schema jsonschema.Schema) (*genai.Schema, error) {
 		MinProperties:    emptyableToPtr(schema.MinProperties),
 		MaxItems:         schema.MaxItems,
 		Maximum:          schema.Maximum,
-		Nullable:         nullable,
+		Nullable:         emptyableToPtr(nullable),
 		MaxProperties:    schema.MaxProperties,
 		Type:             typ,
 		Description:      fromPtr(schema.Description),
